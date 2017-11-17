@@ -138,15 +138,15 @@ func (s *Service) handleConn(conn net.Conn) error {
 			return err
 		}
 	case RequestMetastoreBackup:
-		if err := s.writeMetaStore(conn, r.Database); err != nil {
+		if err := s.writeMetaStore(conn, r.BackupDatabase); err != nil {
 			return err
 		}
 	case RequestDatabaseInfo:
-		return s.writeDatabaseInfo(conn, r.Database)
+		return s.writeDatabaseInfo(conn, r.BackupDatabase)
 	case RequestRetentionPolicyInfo:
-		return s.writeRetentionPolicyInfo(conn, r.Database, r.RetentionPolicy)
+		return s.writeRetentionPolicyInfo(conn, r.BackupDatabase, r.RetentionPolicy)
 	case RequestMetaStoreUpdate:
-		return s.updateMetaStore(conn, bytes, r.Database, r.RetentionPolicy)
+		return s.updateMetaStore(conn, bytes, r.BackupDatabase, r.RestoreDatabase, r.RetentionPolicy)
 	default:
 		return fmt.Errorf("request type unknown: %v", r.Type)
 	}
@@ -170,7 +170,7 @@ func (s *Service) updateShardsLive(conn net.Conn) error {
 	return nil
 }
 
-func (s *Service) updateMetaStore(conn net.Conn, bits []byte, newDBName, newRPName string) error {
+func (s *Service) updateMetaStore(conn net.Conn, bits []byte, backupDBName, restoreDBName, newRPName string) error {
 	md := meta.Data{}
 	err := md.UnmarshalBinary(bits)
 	if err != nil {
@@ -180,17 +180,17 @@ func (s *Service) updateMetaStore(conn net.Conn, bits []byte, newDBName, newRPNa
 
 	data := s.MetaClient.(*meta.Client).Data()
 
-	IDMap, err := data.ImportData(md, newDBName, newRPName)
+	IDMap, err := data.ImportData(md, backupDBName, restoreDBName, newRPName)
 	if err != nil {
 		s.respondIDMap(conn, map[uint64]uint64{})
 		return err
 	}
 
-	rpName := data.Database(newDBName).DefaultRetentionPolicy
+	rpName := data.Database(restoreDBName).DefaultRetentionPolicy
 	err = s.MetaClient.(*meta.Client).SetData(&data)
 
 	for _, v := range IDMap {
-		s.TSDBStore.CreateShard(newDBName, rpName, v, true)
+		s.TSDBStore.CreateShard(restoreDBName, rpName, v, true)
 	}
 
 	err = s.respondIDMap(conn, IDMap)
@@ -429,7 +429,8 @@ const (
 // about the shards on this server for a database or retention policy.
 type Request struct {
 	Type            RequestType
-	Database        string
+	BackupDatabase  string
+	RestoreDatabase string
 	RetentionPolicy string
 	ShardID         uint64
 	Since           time.Time

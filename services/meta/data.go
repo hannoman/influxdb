@@ -760,22 +760,21 @@ func (data *Data) hasAdminUser() bool {
 
 // ImportData imports selected data into the current metadata.
 // opts provides options to possibly rename the Database or Retention Policy, or change the Replication Factor.
-func (data *Data) ImportData(other Data, newDBName, newRPName string) (map[uint64]uint64, error) {
+func (data *Data) ImportData(other Data, backupDBName, restoreDBName, newRPName string) (map[uint64]uint64, error) {
 
 	shardIDMap := make(map[uint64]uint64)
 
-	if len(other.Databases) != 1 {
+	dbImport := other.Database(backupDBName)
+	if dbImport == nil {
 		return shardIDMap, fmt.Errorf("imported metadata has more than one database")
 	}
 
-	dbImport := other.Databases[0]
-
-	if newDBName == "" {
-		newDBName = dbImport.Name
+	if restoreDBName == "" {
+		restoreDBName = backupDBName
 	}
 
 	// change the names if we want/need to
-	dbImport.Name = newDBName
+	dbImport.Name = restoreDBName
 	if newRPName != "" {
 		if len(dbImport.RetentionPolicies) != 1 {
 			return shardIDMap, errors.New("cannot rename more than one imported retention policy")
@@ -783,7 +782,7 @@ func (data *Data) ImportData(other Data, newDBName, newRPName string) (map[uint6
 		dbImport.RetentionPolicies[0].Name = newRPName
 	}
 
-	if data.Database(newDBName) != nil {
+	if data.Database(restoreDBName) != nil {
 		return shardIDMap, errors.New("database already exists")
 	}
 
@@ -799,7 +798,7 @@ func (data *Data) ImportData(other Data, newDBName, newRPName string) (map[uint6
 		}
 	}
 
-	data.Databases = append(data.Databases, dbImport)
+	data.Databases = append(data.Databases, *dbImport)
 
 	return shardIDMap, nil
 }

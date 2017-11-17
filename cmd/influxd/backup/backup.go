@@ -204,7 +204,7 @@ func (cmd *Command) backupShard(rp, sid string) error {
 
 	req := &snapshotter.Request{
 		Type:            reqType,
-		Database:        cmd.database,
+		BackupDatabase:  cmd.database,
 		RetentionPolicy: rp,
 		ShardID:         id,
 		Since:           cmd.since,
@@ -259,8 +259,8 @@ func (cmd *Command) backupDatabase() error {
 	cmd.StdoutLogger.Printf("backing up db=%s", cmd.database)
 
 	req := &snapshotter.Request{
-		Type:     snapshotter.RequestDatabaseInfo,
-		Database: cmd.database,
+		Type:           snapshotter.RequestDatabaseInfo,
+		BackupDatabase: cmd.database,
 	}
 
 	response, err := cmd.requestInfo(req)
@@ -278,7 +278,7 @@ func (cmd *Command) backupRetentionPolicy() error {
 
 	req := &snapshotter.Request{
 		Type:            snapshotter.RequestRetentionPolicyInfo,
-		Database:        cmd.database,
+		BackupDatabase:  cmd.database,
 		RetentionPolicy: cmd.retentionPolicy,
 	}
 
@@ -321,8 +321,8 @@ func (cmd *Command) backupMetastore(useDB string) error {
 	cmd.StdoutLogger.Printf("backing up metastore to %s", metastoreArchivePath)
 
 	req := &snapshotter.Request{
-		Type:     snapshotter.RequestMetastoreBackup,
-		Database: useDB,
+		Type:           snapshotter.RequestMetastoreBackup,
+		BackupDatabase: useDB,
 	}
 
 	err = cmd.downloadAndVerify(req, metastoreArchivePath, func(file string) error {

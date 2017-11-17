@@ -324,8 +324,9 @@ func (cmd *Command) updateMetaLive() error {
 
 	// Read the metastore backup
 	req := &snapshotter.Request{
-		Type:     snapshotter.RequestMetaStoreUpdate,
-		Database: cmd.destinationDatabase,
+		Type:            snapshotter.RequestMetaStoreUpdate,
+		BackupDatabase:  cmd.sourceDatabase,
+		RestoreDatabase: cmd.destinationDatabase,
 	}
 
 	resp, err := cmd.updateMetaRemote(req, bytes.NewReader(metaBytes), int64(len(metaBytes)))
@@ -337,7 +338,7 @@ func (cmd *Command) updateMetaLive() error {
 	npairs := binary.BigEndian.Uint64(resp[8:16])
 
 	if npairs == 0 {
-		return fmt.Errorf("DB metadata not changed. database may already exist")
+		return fmt.Errorf("DB metadata not changed. database %s may already exist", cmd.destinationDatabase)
 	}
 
 	pairs := resp[16:]
